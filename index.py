@@ -1,7 +1,14 @@
-from flask import Flask, render_template,request
+import firebase_admin
+from firebase_admin import credentials, firestore
+cred = credentials.Certificate("serviceAccountKey.json")
+firebase_admin.initialize_app(cred)
+db = firestore.client()
+
+
+
+from flask import Flask, render_template,request    
+
 from datetime import datetime, timezone, timedelta
-
-
 
 app = Flask(__name__)
 
@@ -14,6 +21,8 @@ def index():
     homepage += "<a href=/about>彥維簡介網頁</a><br>"
     homepage += "<a href=/account>帳號密碼</a><br>"
     homepage += "<br><a href=/wave>人選之人演員名單</a><br>"
+    homepage += "<br><a href=/addbooks>圖書精選</a><br>"
+    homepage += "<br><a href=/query>書名查詢</a><br>"
     return homepage
 
 
@@ -54,8 +63,43 @@ def read():
         Result += "文件內容：{}".format(doc.to_dict()) + "<br>"    
     return Result
 
+@app.route("/addbooks")
+def addbooks():
+    Result = ""     
+    collection_ref = db.collection("圖書精選")    
+    docs = collection_ref.order_by("anniversary", direction=firestore.Query.DESCENDING).get()    
+    for doc in docs:         
+        bk = doc.to_dict()
+        Result += "書名：<a href=" +bk["url"] +">"+ bk["title"]+ "</a><br>"
+        Result += "作者："+bk["author"] + "<br>"
+        Result += str(bk["title"]) +"週年紀念版" "<br>"
+        Result += "<img src="+bk["cover"]+ "> </img><br>"  
+    return Result
 
-#if __name__ == "__main__":
-    #app.run()
+@app.route("/query", methods=["GET", "POST"])
+def query():
+    if request.method == "POST":
+        keyword = request.form["keyword"]
+        result = "您輸入的關鍵字是："+ keyword 
+        
+        Result = ""     
+        collection_ref = db.collection("圖書精選")    
+        docs = collection_ref.order_by("anniversary", direction=firestore.Query.DESCENDING).get()    
+        for doc in docs: 
+            bk = doc.to_dict() 
+            if keyword in bk["title"]:       
+        
+                Result += "書名：<a href=" +bk["url"] +">"+ bk["title"]+ "</a><br>"
+                Result += "作者："+bk["author"] + "<br>"
+                Result += str(bk["anniversary"]) +"週年紀念版" "<br>"
+                Result += "<img src="+bk["cover"]+ "> </img><br>"  
+
+
+        return Result
+    else:
+        return render_template("searchbk.html")
+
+if __name__ == "__main__":
+    app.run(debug=True)
     
 
